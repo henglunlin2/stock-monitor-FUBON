@@ -1163,7 +1163,7 @@ def render_fubon_login():
     manager = st.session_state.fubon_manager
     status = manager.get_status()
 
-    if st.sidebar.button("清除富邦連線狀態", use_container_width=True):
+    if st.sidebar.button("清除富邦連線狀態", width="stretch"):
         st.session_state.fubon_manager = FubonRealtimeManager()
         st.session_state.fubon_logged_in = False
         st.session_state.pop("fubon_login_time", None)
@@ -1180,7 +1180,7 @@ def render_fubon_login():
             st.sidebar.caption(f"最後資料：{status['last_message_at'].strftime('%H:%M:%S')}")
         if status["error"]:
             st.sidebar.warning(status["error"])
-        if st.sidebar.button("登出 / 重新連線富邦", use_container_width=True):
+        if st.sidebar.button("登出 / 重新連線富邦", width="stretch"):
             st.session_state.fubon_manager = FubonRealtimeManager()
             st.session_state.fubon_logged_in = False
             st.session_state.pop("fubon_login_time", None)
@@ -1196,7 +1196,7 @@ def render_fubon_login():
         f_id = st.text_input("身分證字號", key="fubon_id_input")
         f_pw = st.text_input("富邦登入密碼", key="fubon_pw_input", type="password")
         f_cert_pw = st.text_input("憑證密碼", key="fubon_cert_pw_input", type="password")
-        if st.button("連線富邦 WebSocket", use_container_width=True):
+        if st.button("連線富邦 WebSocket", width="stretch"):
             if not f_id or not f_pw or not f_cert_pw:
                 st.warning("請填寫完整登入資訊")
             else:
@@ -1224,13 +1224,13 @@ def render_group_editor_lock():
     if st.session_state.group_editor_unlocked:
         st.sidebar.success("已解鎖，可編輯股票分組")
         st.sidebar.info("為避免編輯中被重刷，分組編輯解鎖時會暫停自動更新")
-        if st.sidebar.button("鎖定編輯", key="lock_group_editor_btn", use_container_width=True):
+        if st.sidebar.button("鎖定編輯", key="lock_group_editor_btn", width="stretch"):
             st.session_state.group_editor_unlocked = False
             leave_edit_mode()
             st.rerun()
         return
     pin_input = st.sidebar.text_input("請輸入 PIN 碼以編輯分組", type="password", key="group_edit_pin_input")
-    if st.sidebar.button("解鎖編輯", key="unlock_group_editor_btn", use_container_width=True):
+    if st.sidebar.button("解鎖編輯", key="unlock_group_editor_btn", width="stretch"):
         if pin_input == GROUP_EDIT_PIN:
             st.session_state.group_editor_unlocked = True
             enter_edit_mode()
@@ -1256,7 +1256,7 @@ def render_stock_group_editor():
 
     with st.sidebar.expander("➕ 新增分類", expanded=False):
         new_group_name = st.text_input("分類名稱", key="new_group_name_input")
-        if st.button("新增分類", key="add_group_btn", use_container_width=True):
+        if st.button("新增分類", key="add_group_btn", width="stretch"):
             enter_edit_mode()
             name = new_group_name.strip()
             if not name:
@@ -1294,7 +1294,7 @@ def render_stock_group_editor():
             else:
                 st.caption("查無對應股票，請確認 TWstocklistname.txt 或輸入完整 ticker")
         with quick_col2:
-            if st.button("加入目前分類", key="quick_add_btn", use_container_width=True):
+            if st.button("加入目前分類", key="quick_add_btn", width="stretch"):
                 enter_edit_mode()
                 symbol, stock_name_for_msg, _ = resolve_stock_query(quick_input)
                 if not symbol:
@@ -1317,7 +1317,7 @@ def render_stock_group_editor():
                         st.rerun()
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("💾 儲存分類", key="save_group_btn", use_container_width=True):
+            if st.button("💾 儲存分類", key="save_group_btn", width="stretch"):
                 new_name = new_group_name.strip()
                 if not new_name:
                     st.sidebar.warning("分類名稱不可為空")
@@ -1333,7 +1333,7 @@ def render_stock_group_editor():
                     set_next_selected_group(new_name)
                     st.rerun()
         with col2:
-            if st.button("🗑️ 刪除分類", key="delete_group_btn", use_container_width=True):
+            if st.button("🗑️ 刪除分類", key="delete_group_btn", width="stretch"):
                 if len(groups) <= 1:
                     st.sidebar.warning("至少保留一個分類")
                 else:
@@ -1346,8 +1346,8 @@ def render_stock_group_editor():
 
     with st.sidebar.expander("📦 備份 / 匯出 / 匯入 JSON", expanded=False):
         export_json_str = json.dumps(st.session_state.stock_groups, ensure_ascii=False, indent=2)
-        st.download_button(label="⬇️ 匯出目前分組 JSON", data=export_json_str, file_name="stock_groups.json", mime="application/json", key="download_groups_json_btn", use_container_width=True)
-        if st.button("🗂️ 建立本地備份", key="create_local_backup_btn", use_container_width=True):
+        st.download_button(label="⬇️ 匯出目前分組 JSON", data=export_json_str, file_name="stock_groups.json", mime="application/json", key="download_groups_json_btn", width="stretch")
+        if st.button("🗂️ 建立本地備份", key="create_local_backup_btn", width="stretch"):
             try:
                 backup_file = save_backup_snapshot(st.session_state.stock_groups)
                 st.sidebar.success(f"已建立備份：{os.path.basename(backup_file)}")
@@ -1356,7 +1356,7 @@ def render_stock_group_editor():
         uploaded_file = st.file_uploader("上傳股票分組 JSON", type=["json"], key="upload_groups_json_file")
         if uploaded_file is not None:
             st.caption("上傳後按下「匯入並覆蓋目前分組」才會生效")
-            if st.button("📥 匯入並覆蓋目前分組", key="import_groups_json_btn", use_container_width=True):
+            if st.button("📥 匯入並覆蓋目前分組", key="import_groups_json_btn", width="stretch"):
                 try:
                     raw = uploaded_file.read()
                     data = json.loads(raw.decode("utf-8"))
@@ -1379,7 +1379,7 @@ def render_stock_group_editor():
             st.caption("目前沒有本地備份檔")
 
     with st.sidebar.expander("♻️ 重設", expanded=False):
-        if st.button("還原預設分組", key="reset_groups_btn", use_container_width=True):
+        if st.button("還原預設分組", key="reset_groups_btn", width="stretch"):
             try:
                 save_backup_snapshot(st.session_state.stock_groups)
             except Exception:
@@ -1423,7 +1423,7 @@ else:
 
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 with col1:
-    if st.button("🔄 手動更新即時資料 (清除快取)", use_container_width=True):
+    if st.button("🔄 手動更新即時資料 (清除快取)", width="stretch"):
         st.cache_data.clear()
         st.rerun()
 with col2:
@@ -1495,12 +1495,12 @@ with st.sidebar.expander("🕒 價格來源模式", expanded=True):
     mode_col1, mode_col2 = st.columns(2)
     with mode_col1:
         ws_button_type = "primary" if current_mode == "websocket" else "secondary"
-        if st.button("WebSocket", key="force_websocket_price_btn", use_container_width=True, type=ws_button_type):
+        if st.button("WebSocket", key="force_websocket_price_btn", width="stretch", type=ws_button_type):
             st.session_state.price_source_override = "auto" if current_mode == "websocket" else "websocket"
             st.rerun()
     with mode_col2:
         yf_button_type = "primary" if current_mode == "yfinance" else "secondary"
-        if st.button("Yfinance", key="force_yfinance_price_btn", use_container_width=True, type=yf_button_type):
+        if st.button("Yfinance", key="force_yfinance_price_btn", width="stretch", type=yf_button_type):
             st.session_state.price_source_override = "auto" if current_mode == "yfinance" else "yfinance"
             st.rerun()
 
@@ -1597,7 +1597,7 @@ for group_name, stocks in st.session_state.stock_groups.items():
                 "K值": data["k"],
                 "D值": f"{data['d']:.1f}",
                 "KD訊號": data["kd_signal"],
-                "MACD柱": f"{data["macd_hist"]:.2f}",
+                "MACD柱": f"{data['macd_hist']:.2f}",
                 "MACD訊號": data["macd_signal"],
                 "跳空訊號": data["gap_signal"],
                 "價格來源": price_source,
@@ -1670,7 +1670,7 @@ for group_name, info in group_tables.items():
     ]
     st.dataframe(
         table_df[display_columns],
-        use_container_width=True,
+        width="stretch",
         column_config={
             "代碼": st.column_config.LinkColumn("代碼", help="點擊前往台股 Yahoo", display_text=r"https://tw.stock.yahoo.com/quote/(.*)"),
             "股票名稱": st.column_config.TextColumn("股票名稱"),
