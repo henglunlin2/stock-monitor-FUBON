@@ -41,7 +41,7 @@ st.set_page_config(layout="wide")
 # ===== 常數設定 =====
 TW_TZ = ZoneInfo("Asia/Taipei")
 REFRESH_SEC = 30
-HISTORY_CACHE_TTL = 300
+HISTORY_CACHE_TTL = 3600  # 昨日之前歷史資料每小時最多重抓一次
 ENABLE_GAP_SIGNAL = True
 GROUP_EDIT_PIN = "1219"
 GROUPS_FILE = "stock_groups.json"
@@ -478,11 +478,11 @@ def check_telegram_push_command():
     return False
 
 # =============================================================================
-# yfinance：今日以前歷史資料
+# yfinance：昨日之前歷史資料，每小時快取
 # =============================================================================
 @st.cache_data(ttl=HISTORY_CACHE_TTL)
 def download_stock_data(symbol):
-    """今日以前歷史資料全部使用 yfinance；今日即時價不使用 yfinance。"""
+    """昨日之前歷史資料使用 yfinance；今日即時價不使用 yfinance。此函式每小時最多重抓一次。"""
     candidates = build_yfinance_candidates(symbol)
     last_error = ""
     for yf_symbol in candidates:
@@ -523,6 +523,22 @@ def download_stock_data(symbol):
         return df[["Date", "Open", "High", "Low", "Close", "Volume"]].copy()
     raise ValueError(f"無法取得 yfinance 歷史資料。已嘗試：{', '.join(candidates)}。最後錯誤：{last_error}")
 
+
+
+@st.cache_data(ttl=300)
+def get_data(stocks):
+    """
+    集中取得股票歷史資料，搭配 session_state 避免每次 Streamlit rerun 都重抓。
+    - get_data 本身快取 5 分鐘。
+    - download_stock_data 內層快取 1 小時，確保昨日之前歷史資料每小時最多重抓一次。
+    """
+    result = {}
+    for symbol in list(stocks):
+        try:
+            result[symbol] = {"data": download_stock_data(symbol), "error": None}
+        except Exception as e:
+            result[symbol] = {"data": None, "error": str(e)}
+    return result
 
 def normalize_ohlc(df):
     if df is None or df.empty:
@@ -1425,6 +1441,8 @@ col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 with col1:
     if st.button("🔄 手動更新即時資料 (清除快取)", width="stretch"):
         st.cache_data.clear()
+        st.session_state.pop("data", None)
+        st.session_state.pop("data_signature", None)
         st.rerun()
 with col2:
     auto_refresh = st.toggle("⏱️ 啟用自動更新 (30秒)", value=st.session_state.auto_refresh_enabled)
@@ -1452,7 +1470,7 @@ else:
     st.sidebar.info("目前為唯讀模式：輸入 PIN 後才能修改股票分組")
 
 tw_now = datetime.now(TW_TZ)
-st.caption(f"更新時間：{tw_now.strftime('%Y-%m-%d %H:%M:%S')}")
+st.caption(f"更新時間：{tw_now.strftime('%Y-%m-%d %H:%M:%S')}；昨日之前歷史資料快取：{HISTORY_CACHE_TTL // 60}分鐘；get_data快取：5分鐘")
 rise_threshold = st.slider("儀表板漲幅達標門檻 (%)", min_value=5, max_value=9, value=5, step=1)
 
 manager = st.session_state.fubon_manager
@@ -1534,6 +1552,17 @@ if st.session_state.tg_push_enabled:
                     break
 
 # ===== 資料計算 =====
+# 用 session_state 保存資料快照，避免 slider / sidebar 之類的 widget rerun 時重抓資料。
+all_stocks_for_data = []
+for _stocks in st.session_state.stock_groups.values():
+    all_stocks_for_data.extend(_stocks)
+all_stocks_for_data = list(dict.fromkeys(all_stocks_for_data))
+
+data_signature = json.dumps(st.session_state.stock_groups, ensure_ascii=False, sort_keys=True)
+if "data" not in st.session_state or st.session_state.get("data_signature") != data_signature:
+    st.session_state["data"] = get_data(tuple(all_stocks_for_data))
+    st.session_state["data_signature"] = data_signature
+
 group_tables = {}
 group_up_summary = []
 for group_name, stocks in st.session_state.stock_groups.items():
@@ -1543,7 +1572,10 @@ for group_name, stocks in st.session_state.stock_groups.items():
     hit_names = []
     for symbol in stocks:
         try:
-            raw_df = download_stock_data(symbol)
+            cached_stock_data = st.session_state["data"].get(symbol, {})
+            if cached_stock_data.get("error"):
+                raise ValueError(cached_stock_data["error"])
+            raw_df = cached_stock_data.get("data")
             df = normalize_ohlc(raw_df)
             if df.empty:
                 raise ValueError("無法解析 yfinance 欄位格式")
