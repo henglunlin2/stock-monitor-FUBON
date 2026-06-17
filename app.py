@@ -555,7 +555,8 @@ def get_twse_tpex_quote(symbol: str):
 
     def fetch_twse():
         url = f"https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_{stock_id}.tw&json=1&delay=0&_={ts}"
-        return session.get(url, timeout=5, verify=False).json()
+        # 保留 TLS 憑證驗證，避免 urllib3 InsecureRequestWarning。
+        return session.get(url, timeout=5).json()
 
     try:
         twse = fetch_twse()
