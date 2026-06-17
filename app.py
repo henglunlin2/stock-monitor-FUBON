@@ -30,12 +30,13 @@ st.set_page_config(layout="wide")
 # ===== 常數設定 =====
 TW_TZ = ZoneInfo("Asia/Taipei")
 REFRESH_SEC = 30
-HISTORY_CACHE_TTL = 300
+HISTORY_CACHE_TTL = 3600  # 盤中富邦 HTTP 歷史資料每小時最多重抓一次
 ENABLE_GAP_SIGNAL = True
 GROUP_EDIT_PIN = "1219"
 GROUPS_FILE = "stock_groups.json"
 BACKUP_DIR = "backups"
 STOCK_NAME_FILE = "TWstocklistname.txt"
+APP_LOGO = "jerry.jpg"
 
 # ===== Secrets 安全讀取 =====
 def get_secret_or_default(key: str, default: str = ""):
@@ -1181,8 +1182,28 @@ def render_stock_group_editor():
 # =============================================================================
 # 主畫面
 # =============================================================================
-st.title("📊 股票監控面板 - 告訴我你會買日月光")
-st.markdown('<div id="dashboard-top"></div>', unsafe_allow_html=True)
+if os.path.exists(APP_LOGO):
+    title_icon_col, title_text_col = st.columns([0.45, 8])
+    with title_icon_col:
+        st.image(APP_LOGO, width=58)
+    with title_text_col:
+        st.markdown(
+            """
+            <h1 style="margin:0; padding-top:4px; font-size:42px; font-weight:800; line-height:1.2;">
+                股票監控面板 - 告訴我你會買日月光
+            </h1>
+            """,
+            unsafe_allow_html=True,
+        )
+else:
+    st.markdown(
+        """
+        <h1 style="margin:0; padding-top:4px; font-size:42px; font-weight:800; line-height:1.2;">
+            📊 股票監控面板 - 告訴我你會買日月光
+        </h1>
+        """,
+        unsafe_allow_html=True,
+    )
 
 col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 with col1:
@@ -1392,7 +1413,12 @@ for group_name, info in group_tables.items():
     with header_col1:
         st.subheader(f"【{group_name}】({info['count']}檔)")
     with header_col2:
-        st.markdown('<div style="text-align:right; padding-top:0.4rem;"><a href="#dashboard-top" class="back-to-dashboard-btn">&#11014;&#65039; 回到儀表板</a></div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div style="text-align:right; padding-top:0.4rem;">'
+            '<a href="#dashboard-top" class="back-to-dashboard-btn">⬆️ 回到儀表板</a>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
     table_df = info["table"].copy()
     if not table_df.empty and "代碼網址" in table_df.columns:
         table_df["代碼"] = table_df["代碼網址"]
