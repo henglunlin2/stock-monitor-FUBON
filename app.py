@@ -1069,16 +1069,27 @@ def render_stock_group_editor():
         st.markdown("### ⚡ 快速新增股票搜尋")
         quick_col1, quick_col2 = st.columns([2, 1])
         with quick_col1:
-            quick_input = st.text_input("輸入股票代碼或 ticker", key="quick_add_symbol_input", on_change=enter_edit_mode)
-        normalized_quick_symbol = normalize_symbol_quick(quick_input)
-        if normalized_quick_symbol:
-            st.caption(f"標準化代碼：{normalized_quick_symbol}")
+            quick_input = st.text_input("輸入股票代碼、名稱或 ticker", key="quick_add_symbol_input", on_change=enter_edit_mode)
+        resolved_symbol, resolved_name, resolved_type = resolve_stock_query(quick_input)
+        if quick_input.strip():
+            if resolved_symbol:
+                if resolved_name:
+                    if resolved_type in ["code", "ticker"]:
+                        st.caption(f"查詢結果：{resolved_name} / 將加入：{resolved_symbol}")
+                    elif resolved_type in ["name", "name_partial"]:
+                        st.caption(f"查詢結果：{resolved_name} → {resolved_symbol}")
+                    else:
+                        st.caption(f"標準化代碼：{resolved_symbol}")
+                else:
+                    st.caption(f"標準化代碼：{resolved_symbol}")
+            else:
+                st.caption("查無對應股票，請確認 TWstocklistname.txt 或輸入完整 ticker")
         with quick_col2:
             if st.button("加入目前分類", key="quick_add_btn", use_container_width=True):
                 enter_edit_mode()
-                symbol = normalize_symbol_quick(quick_input)
+                symbol, stock_name_for_msg, _ = resolve_stock_query(quick_input)
                 if not symbol:
-                    st.warning("請輸入股票代碼")
+                    st.warning("請輸入股票代碼或股票名稱")
                 else:
                     current_list = groups.get(selected_group, [])
                     if symbol in current_list:
@@ -1088,9 +1099,12 @@ def render_stock_group_editor():
                         groups[selected_group] = current_list
                         st.session_state.stock_groups = groups
                         save_stock_groups(groups)
-                        st.session_state.symbols_text_area = "\n".join(current_list)
-                        st.session_state.quick_add_symbol_input = ""
-                        st.success(f"已加入 {symbol}")
+                        set_next_selected_group(selected_group)
+                        st.session_state._clear_quick_add_symbol_input = True
+                        if stock_name_for_msg:
+                            st.session_state._quick_add_success_message = f"已加入 {symbol}（{stock_name_for_msg}）"
+                        else:
+                            st.session_state._quick_add_success_message = f"已加入 {symbol}"
                         st.rerun()
         col1, col2 = st.columns(2)
         with col1:
@@ -1101,13 +1115,9 @@ def render_stock_group_editor():
                 elif new_name != selected_group and new_name in groups:
                     st.sidebar.warning("分類名稱已存在，請使用其他名稱")
                 else:
-                    new_symbols = normalize_symbols_from_text(symbols_text)
                     updated = {}
                     for k, v in groups.items():
-                        if k == selected_group:
-                            updated[new_name] = new_symbols
-                        else:
-                            updated[k] = v
+                        updated[new_name if k == selected_group else k] = normalize_symbols_from_text(symbols_text) if k == selected_group else v
                     st.session_state.stock_groups = updated
                     save_stock_groups(updated)
                     leave_edit_mode()
@@ -1122,8 +1132,7 @@ def render_stock_group_editor():
                     st.session_state.stock_groups = groups
                     save_stock_groups(groups)
                     leave_edit_mode()
-                    remaining = list(groups.keys())
-                    set_next_selected_group(remaining[0])
+                    set_next_selected_group(list(groups.keys())[0])
                     st.rerun()
 
     with st.sidebar.expander("📦 備份 / 匯出 / 匯入 JSON", expanded=False):
@@ -1147,8 +1156,7 @@ def render_stock_group_editor():
                     st.session_state.stock_groups = validated
                     save_stock_groups(validated)
                     leave_edit_mode()
-                    first_group = list(validated.keys())[0]
-                    set_next_selected_group(first_group)
+                    set_next_selected_group(list(validated.keys())[0])
                     st.sidebar.success("JSON 匯入成功，已覆蓋目前股票分組")
                     st.rerun()
                 except Exception as e:
@@ -1170,15 +1178,13 @@ def render_stock_group_editor():
             st.session_state.stock_groups = copy.deepcopy(DEFAULT_STOCK_GROUPS)
             save_stock_groups(st.session_state.stock_groups)
             leave_edit_mode()
-            first_group = list(st.session_state.stock_groups.keys())[0]
-            set_next_selected_group(first_group)
+            set_next_selected_group(list(st.session_state.stock_groups.keys())[0])
             st.rerun()
 
     with st.sidebar.expander("👀 分組預覽", expanded=False):
         for g, symbols in st.session_state.stock_groups.items():
             st.markdown(f"**{g}**（{len(symbols)}檔）")
             st.caption(", ".join(symbols) if symbols else "（空）")
-
 # =============================================================================
 # 主畫面
 # =============================================================================
